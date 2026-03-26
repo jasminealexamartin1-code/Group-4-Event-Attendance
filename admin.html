@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin — EvenTrack</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <link rel="stylesheet" href="css/admin.css"/>
+</head>
+<body>
+  <div id="navbar"></div>
+
+  <div class="admin-shell">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+      <div class="sidebar-brand">
+        <div class="sidebar-brand-icon">⚙️</div>
+        <div>
+          <div class="sidebar-brand-name">Admin Panel</div>
+          <div class="sidebar-brand-sub">Event Management</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="sidebar-btn active" data-tab="dashboard" onclick="switchTab('dashboard',this)">
+          <span class="sb-icon">🏠</span> Dashboard
+        </button>
+        <button class="sidebar-btn" data-tab="events" onclick="switchTab('events',this)">
+          <span class="sb-icon">📅</span> Events
+        </button>
+        <button class="sidebar-btn" data-tab="attendees" onclick="switchTab('attendees',this)">
+          <span class="sb-icon">👥</span> Attendees
+        </button>
+        <button class="sidebar-btn" data-tab="analytics" onclick="switchTab('analytics',this)">
+          <span class="sb-icon">📊</span> Analytics
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="sidebar-btn">
+          <span class="sb-icon">⚙️</span> Settings
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="admin-main">
+
+      <!-- ── DASHBOARD TAB ───────────────────── -->
+      <div id="tab-dashboard" class="tab-panel active">
+        <div class="admin-header">
+          <h1>Dashboard</h1>
+          <p>Welcome back! Here's what's happening with your events.</p>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid-4 admin-stats">
+          <div class="card stat-card">
+            <div class="icon-wrap" style="background:linear-gradient(135deg,#7c3aed,#d946ef)">📅</div>
+            <div class="stat-change up">+12%</div>
+            <div class="stat-val">156</div>
+            <div class="stat-label">Total Events</div>
+          </div>
+          <div class="card stat-card">
+            <div class="icon-wrap" style="background:linear-gradient(135deg,#0891b2,#3b82f6)">👥</div>
+            <div class="stat-change up">+18%</div>
+            <div class="stat-val">25,432</div>
+            <div class="stat-label">Total Attendees</div>
+          </div>
+          <div class="card stat-card">
+            <div class="icon-wrap" style="background:linear-gradient(135deg,#059669,#0d9488)">📈</div>
+            <div class="stat-change up">+5%</div>
+            <div class="stat-val">24</div>
+            <div class="stat-label">Active Events</div>
+          </div>
+          <div class="card stat-card">
+            <div class="icon-wrap" style="background:linear-gradient(135deg,#b45309,#f97316)">🆕</div>
+            <div class="stat-change up">+24%</div>
+            <div class="stat-val">1,234</div>
+            <div class="stat-label">New Registrations</div>
+          </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="grid-2" style="margin-top:32px">
+          <div class="card admin-list-card">
+            <div class="list-card-head">
+              <h3>Recent Events</h3>
+              <button class="link-btn" onclick="switchTab('events', document.querySelector('[data-tab=events]'))">View All</button>
+            </div>
+            <div id="dash-events-list"></div>
+          </div>
+          <div class="card admin-list-card">
+            <div class="list-card-head">
+              <h3>Recent Registrations</h3>
+              <button class="link-btn">View All</button>
+            </div>
+            <div id="dash-attendees-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── EVENTS TAB ──────────────────────── -->
+      <div id="tab-events" class="tab-panel">
+        <div class="admin-header flex-head">
+          <div>
+            <h1>Events Management</h1>
+            <p>Manage all your events in one place</p>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="showCreateModal()">+ Create Event</button>
+        </div>
+        <div class="card table-card">
+          <div class="table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Event</th>
+                  <th>Date</th>
+                  <th>Category</th>
+                  <th>Attendees</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="events-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ATTENDEES TAB ───────────────────── -->
+      <div id="tab-attendees" class="tab-panel">
+        <div class="admin-header flex-head">
+          <div>
+            <h1>Attendees Management</h1>
+            <p>View and manage all event registrations</p>
+          </div>
+          <button class="btn btn-outline btn-sm">⬇️ Export Data</button>
+        </div>
+        <div class="card table-card">
+          <div class="table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Event</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="attendees-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ANALYTICS TAB ──────────────────── -->
+      <div id="tab-analytics" class="tab-panel">
+        <div class="admin-header">
+          <h1>Analytics &amp; Insights</h1>
+          <p>Track performance and engagement metrics</p>
+        </div>
+        <div class="grid-2" style="gap:24px">
+          <!-- Registrations Chart -->
+          <div class="card analytics-card">
+            <h3>Event Registrations Over Time</h3>
+            <canvas id="chart-reg" height="220"></canvas>
+          </div>
+          <!-- Category Donut -->
+          <div class="card analytics-card">
+            <h3>Category Distribution</h3>
+            <canvas id="chart-cat" height="220"></canvas>
+          </div>
+          <!-- Attendance Bar -->
+          <div class="card analytics-card">
+            <h3>Attendance Rate by Event</h3>
+            <canvas id="chart-att" height="220"></canvas>
+          </div>
+          <!-- Popular events list -->
+          <div class="card analytics-card">
+            <h3>Popular Events</h3>
+            <div id="popular-list"></div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Create Event Modal -->
+  <div id="create-modal" class="modal-overlay" style="display:none" onclick="closeModalOutside(event)">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>Create New Event</h3>
+        <button onclick="closeModal()" class="modal-close">✕</button>
+      </div>
+      <form id="create-form" onsubmit="handleCreate(event)" style="display:flex;flex-direction:column;gap:16px">
+        <div class="form-group">
+          <label class="form-label">Event Title *</label>
+          <input type="text" class="form-input" placeholder="e.g. Tech Summit 2027" required/>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">Category *</label>
+            <select class="form-input" required>
+              <option value="">Select</option>
+              <option>College</option>
+              <option>SHS</option>
+              <option>Internship</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Type *</label>
+            <select class="form-input" required>
+              <option value="">Select</option>
+              <option value="online">Online</option>
+              <option value="walkin">Walk-in</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date *</label>
+          <input type="date" class="form-input" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Location *</label>
+          <input type="text" class="form-input" placeholder="e.g. Room 301 or Zoom" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Capacity *</label>
+          <input type="number" class="form-input" placeholder="100" min="1" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea class="form-input" rows="3" placeholder="Brief description..."></textarea>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:flex-end">
+          <button type="button" onclick="closeModal()" class="btn btn-outline btn-sm">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm">Create Event</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="footer"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/main.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
