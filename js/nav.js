@@ -14,8 +14,7 @@ function renderNav() {
           <a href="events.html"  class="nav-link">Events</a>
           <a href="about.html"   class="nav-link">About</a>
           <a href="contact.html" class="nav-link">Contact</a>
-          <a href="admin.html"   class="nav-link">Admin</a>
-          <a href="events.html"  class="nav-cta">Browse Events</a>
+          <a href="admin.html"   class="nav-cta">Admin</a>
         </div>
         <button id="mobile-toggle" class="mobile-toggle" aria-label="Menu">
           <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -29,8 +28,7 @@ function renderNav() {
       <a href="events.html"  class="nav-link">Events</a>
       <a href="about.html"   class="nav-link">About</a>
       <a href="contact.html" class="nav-link">Contact</a>
-      <a href="admin.html"   class="nav-link">Admin</a>
-      <a href="events.html"  class="nav-cta btn">Browse Events</a>
+      <a href="admin.html"   class="nav-cta btn">Admin</a>
     </div>
   `;
 }
