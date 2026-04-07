@@ -10,6 +10,59 @@
 <body>
   <div id="navbar"></div>
 
+  <div id="admin-login-gate" class="admin-login-gate">
+    <div class="admin-login-card card">
+      <div class="admin-login-brand">
+        <div class="admin-login-icon">🔐</div>
+        <h1 class="admin-login-title">Admin sign in</h1>
+        <p class="admin-login-sub">EvenTrack admin panel — localhost / XAMPP</p>
+      </div>
+
+      <div id="auth-login-panel">
+        <form id="login-form" class="admin-auth-form">
+          <div class="form-group">
+            <label class="form-label" for="login-username">Username</label>
+            <input id="login-username" name="username" type="text" class="form-input" autocomplete="username" required minlength="3"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="login-password">Password</label>
+            <input id="login-password" name="password" type="password" class="form-input" autocomplete="current-password" required/>
+          </div>
+          <p id="login-error" class="auth-error" role="alert" hidden></p>
+          <button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px">Sign in</button>
+        </form>
+        <p class="auth-switch">
+          No account yet?
+          <button type="button" class="link-btn auth-switch-btn" id="show-register">Create an account</button>
+        </p>
+      </div>
+
+      <div id="auth-register-panel" hidden>
+        <form id="register-form" class="admin-auth-form">
+          <div class="form-group">
+            <label class="form-label" for="reg-username">Username</label>
+            <input id="reg-username" name="username" type="text" class="form-input" autocomplete="username" required minlength="3"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="reg-password">Password</label>
+            <input id="reg-password" name="password" type="password" class="form-input" autocomplete="new-password" required minlength="6"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="reg-confirm">Confirm password</label>
+            <input id="reg-confirm" name="confirmPassword" type="password" class="form-input" autocomplete="new-password" required minlength="6"/>
+          </div>
+          <p id="register-error" class="auth-error" role="alert" hidden></p>
+          <button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px">Create account</button>
+        </form>
+        <p class="auth-switch">
+          Already registered?
+          <button type="button" class="link-btn auth-switch-btn" id="show-login">Sign in</button>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div id="admin-app" hidden>
   <div class="admin-shell">
     <!-- Sidebar -->
     <aside class="admin-sidebar">
@@ -35,8 +88,8 @@
         </button>
       </nav>
       <div class="sidebar-footer">
-        <button class="sidebar-btn">
-          <span class="sb-icon">⚙️</span> Settings
+        <button type="button" class="sidebar-btn" id="admin-logout-btn">
+          <span class="sb-icon">🚪</span> Log out
         </button>
       </div>
     </aside>
@@ -240,6 +293,7 @@
         </div>
       </form>
     </div>
+  </div>
   </div>
 
   <div id="footer"></div>

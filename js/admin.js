@@ -1,4 +1,134 @@
-// ── Admin Page Logic ────────────────────────────────────────────────────
+// Admin Page Logic 
+
+const BASE_URL = 'http://localhost/EvenTrack/php/admin.php'; 
+
+const AUTH = {
+  me: `${BASE_URL}?action=me`,
+  login: `${BASE_URL}?action=login`,
+  register: `${BASE_URL}?action=register`,
+  logout: `${BASE_URL}?action=logout`,
+};
+async function authFetch(url, options = {}) {
+  const res = await fetch(url, {
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+    ...options,
+  });
+  let data = {};
+  try {
+    data = await res.json();
+  } catch {
+    data = { ok: false, error: 'Invalid server response. Open admin via http://localhost/... (PHP required).' };
+  }
+  return { res, data };
+}
+
+function setAuthView(loggedIn) {
+  const gate = document.getElementById('admin-login-gate');
+  const app = document.getElementById('admin-app');
+  if (!gate || !app) return;
+  
+  // change the CSS display property instead of using the hidden attribute
+  if (loggedIn) {
+    gate.style.display = 'none';
+    app.style.display = 'block'; 
+  } else {
+    gate.style.display = 'flex';
+    app.style.display = 'none';
+  }
+}
+
+function clearAuthErrors() {
+  ['login-error', 'register-error'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.textContent = '';
+      el.hidden = true;
+    }
+  });
+}
+
+function showAuthError(id, message) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.textContent = message;
+    el.hidden = !message;
+  }
+}
+
+async function initAdminAuth() {
+  const { data } = await authFetch(AUTH.me, { method: 'GET' });
+  setAuthView(!!data.ok);
+}
+
+function setupAdminAuthUI() {
+  const showReg = document.getElementById('show-register');
+  const showLogin = document.getElementById('show-login');
+  const loginPanel = document.getElementById('auth-login-panel');
+  const regPanel = document.getElementById('auth-register-panel');
+  const loginForm = document.getElementById('login-form');
+  const registerForm = document.getElementById('register-form');
+  const logoutBtn = document.getElementById('admin-logout-btn');
+
+  if (showReg && showLogin && loginPanel && regPanel) {
+    showReg.addEventListener('click', () => {
+      clearAuthErrors();
+      loginPanel.hidden = true;
+      regPanel.hidden = false;
+    });
+    showLogin.addEventListener('click', () => {
+      clearAuthErrors();
+      regPanel.hidden = true;
+      loginPanel.hidden = false;
+    });
+  }
+
+  if (loginForm) {
+    loginForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      clearAuthErrors();
+      const username = document.getElementById('login-username')?.value?.trim() || '';
+      const password = document.getElementById('login-password')?.value || '';
+      const { res, data } = await authFetch(AUTH.login, {
+        method: 'POST',
+        body: JSON.stringify({ username, password }),
+      });
+      if (data.ok) {
+        setAuthView(true);
+        loginForm.reset();
+      } else {
+        showAuthError('login-error', data.error || (res.status === 401 ? 'Invalid username or password.' : 'Sign in failed.'));
+      }
+    });
+  }
+
+  if (registerForm) {
+    registerForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      clearAuthErrors();
+      const username = document.getElementById('reg-username')?.value?.trim() || '';
+      const password = document.getElementById('reg-password')?.value || '';
+      const confirmPassword = document.getElementById('reg-confirm')?.value || '';
+      const { res, data } = await authFetch(AUTH.register, {
+        method: 'POST',
+        body: JSON.stringify({ username, password, confirmPassword }),
+      });
+      if (data.ok) {
+        setAuthView(true);
+        registerForm.reset();
+      } else {
+        showAuthError('register-error', data.error || `Could not register (${res.status}).`);
+      }
+    });
+  }
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+      await authFetch(AUTH.logout, { method: 'POST', body: '{}' });
+      setAuthView(false);
+    });
+  }
+}
 
 const recentAttendees = [
   { name: 'John Doe',       email: 'john@example.com',   event: 'Tech Innovation Summit',    date: '2026-04-15', status: 'confirmed' },
@@ -338,7 +468,9 @@ function handleCreate(e) {
 }
 
 // ── Init ───────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  setupAdminAuthUI();
+  await initAdminAuth();
   renderDashboardEvents();
   renderDashboardAttendees();
   renderEventsTable();

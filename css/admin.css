@@ -1,3 +1,40 @@
+/* ── Admin login gate ── */
+.admin-login-gate {
+  min-height: calc(100vh - var(--nav-h));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+}
+.admin-login-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 36px 32px 32px;
+}
+.admin-login-brand { text-align: center; margin-bottom: 28px; }
+.admin-login-icon { font-size: 2.25rem; margin-bottom: 12px; }
+.admin-login-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 6px;
+}
+.admin-login-sub { font-size: 0.85rem; color: var(--slate-2); line-height: 1.45; }
+.admin-auth-form { display: flex; flex-direction: column; gap: 4px; }
+.auth-error {
+  font-size: 0.82rem;
+  color: var(--rose);
+  margin: 8px 0 0;
+}
+.auth-switch {
+  text-align: center;
+  margin-top: 22px;
+  font-size: 0.875rem;
+  color: var(--slate-2);
+}
+.auth-switch-btn { margin-left: 4px; }
+
 /* ── Admin Page ── */
 .admin-shell {
   display: flex; min-height: calc(100vh - var(--nav-h));
@@ -160,12 +197,16 @@
 .modal-overlay {
   position: fixed; inset: 0; z-index: 200;
   background: rgba(0,0,0,0.65); backdrop-filter: blur(8px);
-  display: flex; align-items: center; justify-content: center; padding: 24px;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 24px;
+  overflow-y: auto; /* Prevent modal from being cut off on short screens */
 }
 .modal-box {
   background: #0d1526; border: 1px solid var(--border);
   border-radius: var(--radius-xl); padding: 32px;
   width: 100%; max-width: 520px;
+  max-height: calc(100vh - 48px); /* Keep content inside viewport */
+  overflow-y: auto;
   box-shadow: 0 40px 80px rgba(0,0,0,0.6);
 }
 .modal-head {
@@ -181,4 +222,8 @@
 }
 .modal-close:hover { background: rgba(255,255,255,0.1); color: var(--white); }
 .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-@media(max-width:480px) { .form-row-2 { grid-template-columns: 1fr; } }
+@media(max-width:480px) {
+  .form-row-2 { grid-template-columns: 1fr; }
+  .modal-overlay { padding: 14px; }
+  .modal-box { padding: 20px; max-height: calc(100vh - 28px); }
+}
