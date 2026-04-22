@@ -1,7 +1,7 @@
 /* ── Events Page ── */
 .filters-bar {
-  position: sticky; top: var(--nav-h); z-index: 50;
-  background: rgba(5,8,22,0.92); backdrop-filter: blur(20px);
+  position: relative;
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
   padding: 14px 0;
 }
