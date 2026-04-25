@@ -40,7 +40,18 @@ function renderFooter() {
   el.innerHTML = `
     <footer class="footer">
       <div class="container">
-        <p>© 2026 <a href="index.html">EvenTrack</a>. All rights reserved. Built with ❤️ by Group 4.</p>
+        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 32px; margin-bottom: 20px; font-size: 0.95rem; color: var(--primary-navy); font-weight: 600;">
+          <a href="mailto:info@eventrack.com" style="display: flex; align-items: center; gap: 8px;">
+            ✉️ info@eventrack.com
+          </a>
+          <a href="tel:+15551234567" style="display: flex; align-items: center; gap: 8px;">
+            📞 +1 (555) 123-4567
+          </a>
+          <span style="display: flex; align-items: center; gap: 8px;">
+            📍 123 Event Street, Tech City
+          </span>
+        </div>
+        <p>© 2026 <a href="index.html">EvenTrack</a>. All rights reserved.</p>
       </div>
     </footer>
   `;

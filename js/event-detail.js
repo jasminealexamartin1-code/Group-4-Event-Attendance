@@ -1,8 +1,39 @@
 // ── Event Detail Page ──────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  const id    = getParam('id');
-  const event = events.find(e => e.id === id);
-  const main  = document.getElementById('page-content');
+document.addEventListener("DOMContentLoaded", async () => {
+  const id = getParam("id");
+  const main = document.getElementById("page-content");
+
+  // 1. Fetch live events from DB using the FULL PATH
+  let dbEvents = [];
+  try {
+    const res = await fetch(
+      "http://127.0.0.1/EvenTrack/php/admin.php?action=get_events",
+    );
+    const data = await res.json();
+    if (data.ok && data.events) {
+      dbEvents = data.events.map((e) => ({
+        ...e,
+        title: e.title || e.event_title || e.name,
+        monogram: getMonogram(e.title || e.event_title || e.name),
+        gradient: e.gradient || "grad-violet",
+        fullDescription: e.description || "No detailed description available.",
+        attendees: e.attendees || 0,
+        capacity: e.capacity || 100,
+        type: e.type || "walkin",
+        time: e.time || "TBA",
+        category:
+          e.category === "Intern" ? "Internship" : e.category || "College",
+      }));
+    }
+  } catch (err) {
+    console.error(err);
+  }
+
+  // 2. Combine DB events with static placeholders
+  const allEvents = [...dbEvents, ...events];
+
+  // 3. Find event (Using String() so '1' matches 1)
+  const event = allEvents.find((e) => String(e.id) === String(id));
 
   if (!event) {
     main.innerHTML = `
@@ -12,27 +43,41 @@ document.addEventListener('DOMContentLoaded', () => {
         <p>The event you're looking for doesn't exist.</p>
         <a href="events.html" class="btn btn-primary">Browse Events</a>
       </div>`;
-    document.title = 'Not Found — EvenTrack';
+    document.title = "Not Found — EvenTrack";
     return;
   }
 
   document.title = `${event.title} — EvenTrack`;
   const pct = Math.round((event.attendees / event.capacity) * 100);
 
+  // Exclusive AND Inclusive button logic
+  const typesStr = (event.type || "walkin").toLowerCase();
+  const hasOnline = typesStr.includes("online");
+  const hasWalkin = typesStr.includes("walkin");
+
+  let sidebarBtnsHtml = "";
+  if (hasOnline && hasWalkin) {
+    sidebarBtnsHtml = `
+     <a href="register.html?id=${event.id}&type=walkin" class="btn btn-primary btn-full">🚶 Register for Walk-in</a>
+     <a href="register.html?id=${event.id}&type=online" class="btn btn-outline btn-full">🌐 Join Online Instead</a>
+   `;
+  } else if (hasOnline) {
+    sidebarBtnsHtml = `<a href="register.html?id=${event.id}&type=online" class="btn btn-primary btn-full">🌐 Register for Online Event</a>`;
+  } else {
+    sidebarBtnsHtml = `<a href="register.html?id=${event.id}&type=walkin" class="btn btn-primary btn-full">🚶 Register for Walk-in</a>`;
+  }
+
   main.innerHTML = `
-    <!-- Banner -->
     <div class="detail-banner ${event.gradient}">
       <div class="banner-overlay"></div>
       <a href="events.html" class="back-link">
         ← Back to Events
       </a>
-      <span class="detail-banner-emoji">${event.icon}</span>
+      <span class="detail-banner-emoji">${event.monogram}</span>
     </div>
 
-    <!-- Content -->
     <section>
       <div class="container detail-layout">
-        <!-- Left -->
         <div>
           <div class="detail-badges">
             ${statusBadge(event.status)}
@@ -57,7 +102,6 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </div>
 
-        <!-- Sidebar -->
         <aside class="detail-sidebar">
           <div class="sidebar-card">
             <h3>Event Details</h3>
@@ -78,14 +122,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
               </div>
               <div class="detail-info-row">
-                <span class="info-icon">👥</span>
-                <div>
-                  <div class="info-label">Attendees</div>
-                  <div class="info-val">${event.attendees} / ${event.capacity}</div>
-                  <div class="progress-track" style="margin-top:8px">
-                    <div class="progress-fill" style="width:${pct}%"></div>
-                  </div>
-                </div>
               </div>
               <div class="detail-info-row">
                 <span class="info-icon">🏷️</span>
@@ -97,10 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
 
             <div class="sidebar-btns">
-              <a href="register.html?id=${event.id}" class="btn btn-primary btn-full">
-                ${event.type === 'online' ? '🌐 Register for Online Event' : '🚶 Register for Walk-in'}
-              </a>
-              ${event.type === 'walkin' ? `<a href="register.html?id=${event.id}" class="btn btn-outline btn-full">💻 Join Online Instead</a>` : ''}
+              ${sidebarBtnsHtml}
             </div>
 
             <div class="info-note">
