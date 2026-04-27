@@ -1,6 +1,6 @@
 DB NAME: EvenTrackdb
 
-// Admin accounts (for admin panel login — run once in phpMyAdmin / MySQL)
+// Admin accounts 
 CREATE TABLE admin (
   id INT AUTO_INCREMENT PRIMARY KEY,
   username VARCHAR(64) NOT NULL UNIQUE,
@@ -11,16 +11,17 @@ CREATE TABLE admin (
 // Events table
 CREATE TABLE events (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  event_title VARCHAR(255),
-  description TEXT,
+  name VARCHAR(255) NOT NULL,
+  description TEXT NULL,
   date DATE,
   time TIME,
   location VARCHAR(255),
-  category ENUM('SHS', 'College', 'Intern'),
-  capacity INT,
-  status ENUM('upcoming', 'live', 'past') DEFAULT 'upcoming',
-  type 
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  category VARCHAR(255),
+  type VARCHAR(255),
+  capacity INT DEFAULT 0,
+  status VARCHAR(50) DEFAULT 'upcoming',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  type varchar(255) DEFAULT 'Walk-in'
 );
 
 //Attendees table
@@ -33,9 +34,9 @@ CREATE TABLE attendees (
   phone VARCHAR(20),
   organization VARCHAR(255),
   year_level VARCHAR(50),
-  category ENUM('SHS', 'College', 'Intern'),
-  attendance_type ENUM('Online Registration', 'Walk-in', 'Online Attendee'),
+  category VARCHAR(100),
+  attendance_type VARCHAR(100),
   attended BOOLEAN DEFAULT FALSE,
   registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (event_id) REFERENCES events(id)
+  FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
 );

@@ -347,28 +347,39 @@ if ($action === 'register_attendee') {
         json_out(['ok' => false, 'error' => 'Method not allowed'], 405);
     }
 
-    // Grab the data sent from the JavaScript form
     $event_id = (int)($_POST['event_id'] ?? 0);
     $first_name = trim((string)($_POST['first_name'] ?? ''));
     $last_name = trim((string)($_POST['last_name'] ?? ''));
-    $email = trim((string)($_POST['email'] ?? '')); // <--- Added Email
+    $email = trim((string)($_POST['email'] ?? '')); 
     $section = trim((string)($_POST['section'] ?? ''));
     $year_level = trim((string)($_POST['year_level'] ?? ''));
     $attendance_type = trim((string)($_POST['attendance_type'] ?? 'walkin'));
 
-    // Updated validation to require email
     if (!$event_id || $first_name === '' || $last_name === '' || $email === '' || $section === '' || $year_level === '') {
         json_out(['ok' => false, 'error' => 'All fields are required.'], 400);
     }
 
-    // Automatically assign the Category (SHS or College)
+    // --- NEW VALIDATION LOGIC START ---
+    try {
+        // Check if this email is already registered for this specific event
+        $checkStmt = db()->prepare('SELECT id FROM attendees WHERE event_id = ? AND email = ? LIMIT 1');
+        $checkStmt->execute([$event_id, $email]);
+        
+        if ($checkStmt->fetch()) {
+            // If fetch() returns data, it means a row already exists!
+            json_out(['ok' => false, 'error' => 'This email is already registered for this event.'], 409);
+        }
+    } catch (PDOException $e) {
+        json_out(['ok' => false, 'error' => 'Database Error during validation: ' . $e->getMessage()], 500);
+    }
+    // --- NEW VALIDATION LOGIC END ---
+
     $category = 'College'; 
     if (str_contains(strtolower($year_level), 'grade')) {
         $category = 'SHS';
     }
 
     try {
-        // Updated SQL query to include the email column
         $stmt = db()->prepare('INSERT INTO attendees (event_id, first_name, last_name, email, section, year_level, category, attendance_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
         $stmt->execute([$event_id, $first_name, $last_name, $email, $section, $year_level, $category, $attendance_type]);
         json_out(['ok' => true]);
