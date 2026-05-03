@@ -106,8 +106,12 @@ function render() {
 }
 
 function eventCard(e) {
+  // Check if the event is stopped/past
+  const isPast = e.status === "past";
+
   return `
-    <a href="event-detail.html?id=${e.id}" class="card event-card">
+    <a href="${isPast ? "javascript:void(0)" : `event-detail.html?id=${e.id}`}" 
+       class="card event-card ${isPast ? "past-event" : ""}">
       <div class="event-thumb ${e.gradient}">
         <span class="event-thumb-emoji">${e.monogram}</span>
       </div>
@@ -135,6 +139,7 @@ function eventCard(e) {
     </a>
   `;
 }
+
 document.addEventListener("DOMContentLoaded", async () => {
   let dbEvents = [];
   try {

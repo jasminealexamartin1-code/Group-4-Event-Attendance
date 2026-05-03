@@ -10,8 +10,8 @@ async function loadDbEvents() {
     const data = await response.json();
     if (data.ok && data.events) {
       dbEvents = data.events;
-      renderEventsTable(); 
-      renderDashboardEvents(); 
+      renderEventsTable();
+      renderDashboardEvents();
     }
   } catch (err) {
     console.error("Error loading DB events", err);
@@ -182,28 +182,36 @@ function switchTab(tabName, btn) {
 // ── Dashboard Lists ────────────────────────────────────────────────────
 function renderDashboardEvents() {
   const el = document.getElementById("dash-events-list");
-  
+
   if (!dbEvents || dbEvents.length === 0) {
-    el.innerHTML = "<p style='padding: 16px; color: var(--slate-2);'>No events created yet.</p>";
+    el.innerHTML =
+      "<p style='padding: 16px; color: var(--slate-2);'>No events created yet.</p>";
     return;
   }
 
   // Display only the 4 most recently created real database events
-  el.innerHTML = dbEvents.slice(0, 4).map((e) => `
+  el.innerHTML = dbEvents
+    .slice(0, 4)
+    .map(
+      (e) => `
     <div class="list-item">
-      <div class="list-thumb ${e.gradient || 'grad-violet'}">${getMonogram(e.title || e.name || e.event_title)}</div>
+      <div class="list-thumb ${e.gradient || "grad-violet"}">${getMonogram(e.title || e.name || e.event_title)}</div>
       <div class="list-info">
         <div class="list-name">${e.title || e.name || e.event_title}</div>
         <div class="list-sub">${e.date}</div>
       </div>
-      ${statusBadge(e.status || 'upcoming')}
+      ${statusBadge(e.status || "upcoming")}
     </div>
-  `).join("");
+  `,
+    )
+    .join("");
 }
 
 async function loadRecentAttendees() {
   try {
-    const response = await fetch(`${BASE_URL}?action=get_recent_attendees`, { credentials: 'include' });
+    const response = await fetch(`${BASE_URL}?action=get_recent_attendees`, {
+      credentials: "include",
+    });
     const data = await response.json();
     renderDashboardAttendees(data.ok ? data.attendees : []);
   } catch (err) {
@@ -213,19 +221,22 @@ async function loadRecentAttendees() {
 
 function renderDashboardAttendees(attendees) {
   const el = document.getElementById("dash-attendees-list");
-  
+
   if (!attendees || attendees.length === 0) {
-    el.innerHTML = "<p style='padding: 16px; color: var(--slate-2);'>No recent registrations yet.</p>";
+    el.innerHTML =
+      "<p style='padding: 16px; color: var(--slate-2);'>No recent registrations yet.</p>";
     return;
   }
 
   // Display the 4 most recent real registrations
-  el.innerHTML = attendees.map((a) => {
-    const evtName = a.event_name || a.event_title || 'Unknown Event';
-    const statusHtml = a.attended == 1 
-        ? `<span class="badge badge-green">Present</span>` 
-        : `<span class="badge badge-slate" style="text-transform:capitalize">${(a.attendance_type || 'Registered')}</span>`;
-    return `
+  el.innerHTML = attendees
+    .map((a) => {
+      const evtName = a.event_name || a.event_title || "Unknown Event";
+      const statusHtml =
+        a.attended == 1
+          ? `<span class="badge badge-green">Present</span>`
+          : `<span class="badge badge-slate" style="text-transform:capitalize">${a.attendance_type || "Registered"}</span>`;
+      return `
     <div class="list-item">
       <div class="list-avatar">${a.first_name.charAt(0)}</div>
       <div class="list-info">
@@ -234,7 +245,9 @@ function renderDashboardAttendees(attendees) {
       </div>
       ${statusHtml}
     </div>
-  `}).join("");
+  `;
+    })
+    .join("");
 }
 
 // ── Events Table ───────────────────────────────────────────────────────
@@ -266,6 +279,20 @@ function renderEventsTable() {
           <button class="action-btn" title="Manage Attendees" onclick="openEventAttendees('${e.id}')">👥</button>
           <button class="action-btn" title="Edit" onclick="openEditModal('${e.id}')">✏️</button>
           <button class="action-btn del" title="Delete" onclick="deleteEvent('${e.id}')">🗑</button>
+          
+          ${
+            /* NEW TOGGLE BUTTON LOGIC */ !isNaN(e.id)
+              ? `
+            <button class="action-btn" 
+                    title="${e.status === "past" ? "Resume Event" : "Stop Event"}" 
+                    onclick="toggleEventStatus('${e.id}', '${e.status}')" 
+                    style="color: ${e.status === "past" ? "var(--emerald)" : "var(--rose)"};">
+              ${e.status === "past" ? "▶️" : "🛑"}
+            </button>
+          `
+              : ""
+          }
+          
         </div>
       </td>
     </tr>
@@ -645,6 +672,51 @@ async function deleteEvent(id) {
   }
 }
 
+// --- TOGGLE EVENT STATUS (Stop / Resume) ---
+async function toggleEventStatus(id, currentStatus) {
+  if (isNaN(id)) {
+    alert("This is a placeholder event and cannot be modified.");
+    return;
+  }
+
+  // Determine what we are doing based on the current status
+  const isStopping = currentStatus !== "past";
+  const newStatus = isStopping ? "past" : "upcoming"; // Resumes to 'upcoming'
+  const actionWord = isStopping ? "stop" : "resume";
+  const confirmMsg = isStopping
+    ? "Are you sure you want to STOP this event? Registration will be closed."
+    : "Are you sure you want to RESUME this event? Registration will be re-opened.";
+
+  if (!confirm(confirmMsg)) return;
+
+  const formData = new FormData();
+  formData.append("id", id);
+  formData.append("status", newStatus);
+
+  try {
+    const response = await fetch(`${BASE_URL}?action=update_event_status`, {
+      method: "POST",
+      body: formData,
+      credentials: "include",
+    });
+    const data = await response.json();
+
+    if (data.ok) {
+      alert(`Event ${actionWord}d successfully.`);
+      loadDbEvents(); // Refresh the main table
+
+      // Refresh the attendees page if we are currently looking at it
+      if (currentEventId == id) {
+        openEventAttendees(id);
+      }
+    } else {
+      alert("Error: " + data.error);
+    }
+  } catch (err) {
+    alert(`Server error while trying to ${actionWord} event.`);
+  }
+}
+
 function closeModal() {
   document.getElementById("create-modal").style.display = "none";
 }
@@ -697,50 +769,63 @@ let currentEventAttendees = []; // Added to store data for the CSV export!
 
 async function openEventAttendees(eventId) {
   if (isNaN(eventId)) {
-    alert("This is a placeholder event from data.js. No attendees can be managed.");
+    alert(
+      "This is a placeholder event from data.js. No attendees can be managed.",
+    );
     return;
   }
 
   currentEventId = eventId;
-  switchTab("event-attendees"); 
-  document.getElementById("spec-attendees-tbody").innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 24px;">Loading attendees...</td></tr>';
+  switchTab("event-attendees");
+  document.getElementById("spec-attendees-tbody").innerHTML =
+    '<tr><td colspan="6" style="text-align:center; padding: 24px;">Loading attendees...</td></tr>';
   document.getElementById("event-specific-stats").style.display = "none";
-  
+
   // Hide export button while loading
   const exportBtn = document.getElementById("event-export-container");
-  if (exportBtn) exportBtn.style.display = "none"; 
+  if (exportBtn) exportBtn.style.display = "none";
 
   try {
-    const response = await fetch(`${BASE_URL}?action=get_event_attendees&event_id=${eventId}`, { credentials: "include" });
+    const response = await fetch(
+      `${BASE_URL}?action=get_event_attendees&event_id=${eventId}`,
+      { credentials: "include" },
+    );
     const data = await response.json();
 
     if (data.ok) {
-      currentEventAttendees = data.attendees; 
-      const evtName = data.event ? data.event.name || data.event.event_title : "Event Attendees";
+      currentEventAttendees = data.attendees;
+      const evtName = data.event
+        ? data.event.name || data.event.event_title
+        : "Event Attendees";
       document.getElementById("spec-event-title").textContent = evtName;
       renderEventAttendees(data.attendees);
     } else {
-      document.getElementById("spec-attendees-tbody").innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 24px; color: var(--rose);">Error: ${data.error}</td></tr>`;
+      document.getElementById("spec-attendees-tbody").innerHTML =
+        `<tr><td colspan="6" style="text-align:center; padding: 24px; color: var(--rose);">Error: ${data.error}</td></tr>`;
     }
   } catch (err) {
-    document.getElementById("spec-attendees-tbody").innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 24px; color: var(--rose);">Server error while loading attendees.</td></tr>';
+    document.getElementById("spec-attendees-tbody").innerHTML =
+      '<tr><td colspan="6" style="text-align:center; padding: 24px; color: var(--rose);">Server error while loading attendees.</td></tr>';
   }
 }
 
 function renderEventAttendees(attendees) {
   const tbody = document.getElementById("spec-attendees-tbody");
   const statsContainer = document.getElementById("event-specific-stats");
-  const exportBtn = document.getElementById("event-export-container"); 
+  const exportBtn = document.getElementById("event-export-container");
 
   if (!attendees || attendees.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 24px; color: var(--slate-2);">No students have registered for this event yet.</td></tr>';
+    tbody.innerHTML =
+      '<tr><td colspan="6" style="text-align:center; padding: 24px; color: var(--slate-2);">No students have registered for this event yet.</td></tr>';
     if (statsContainer) statsContainer.style.display = "none";
     if (exportBtn) exportBtn.style.display = "none";
     return;
   }
 
   // 1. Render Table
-  tbody.innerHTML = attendees.map(a => `
+  tbody.innerHTML = attendees
+    .map(
+      (a) => `
     <tr>
       <td>
         <div class="td-event">
@@ -766,24 +851,34 @@ function renderEventAttendees(attendees) {
         </div>
       </td>
     </tr>
-  `).join("");
+  `,
+    )
+    .join("");
 
   // 2. Calculate Stats
   const total = attendees.length;
-  const present = attendees.filter(a => a.attended == 1).length;
+  const present = attendees.filter((a) => a.attended == 1).length;
   const presentRate = total > 0 ? Math.round((present / total) * 100) : 0;
 
-  const onlineRegs = attendees.filter(a => (a.attendance_type || "").toLowerCase() === 'online');
-  const onlinePresent = onlineRegs.filter(a => a.attended == 1).length;
-  const onlinePresentRate = onlineRegs.length > 0 ? Math.round((onlinePresent / onlineRegs.length) * 100) : 0;
+  const onlineRegs = attendees.filter(
+    (a) => (a.attendance_type || "").toLowerCase() === "online",
+  );
+  const onlinePresent = onlineRegs.filter((a) => a.attended == 1).length;
+  const onlinePresentRate =
+    onlineRegs.length > 0
+      ? Math.round((onlinePresent / onlineRegs.length) * 100)
+      : 0;
 
-  const walkinRegs = attendees.filter(a => (a.attendance_type || "").toLowerCase() === 'walkin').length;
+  const walkinRegs = attendees.filter(
+    (a) => (a.attendance_type || "").toLowerCase() === "walkin",
+  ).length;
   const walkinMix = total > 0 ? Math.round((walkinRegs / total) * 100) : 0;
-  const onlineMix = total > 0 ? Math.round((onlineRegs.length / total) * 100) : 0;
+  const onlineMix =
+    total > 0 ? Math.round((onlineRegs.length / total) * 100) : 0;
 
-  const shs = attendees.filter(a => a.category === 'SHS').length;
-  const college = attendees.filter(a => a.category === 'College').length;
-  
+  const shs = attendees.filter((a) => a.category === "SHS").length;
+  const college = attendees.filter((a) => a.category === "College").length;
+
   // 3. Inject Stats UI (Using var(--font-body) to un-squish the numbers!)
   if (statsContainer) {
     statsContainer.style.display = "grid";
@@ -791,12 +886,12 @@ function renderEventAttendees(attendees) {
 
     statsContainer.innerHTML = `
       <div class="card stat-card" style="padding: 20px;">
-        <div class="stat-change ${presentRate >= 50 ? 'up' : 'down'}">${presentRate}%</div>
+        <div class="stat-change ${presentRate >= 50 ? "up" : "down"}">${presentRate}%</div>
         <div class="stat-val" style="font-size: 2.2rem; font-family: var(--font-body); font-weight: 800;">${present} <span style="font-size: 1.1rem; color: var(--slate-3); font-weight: 600;">/ ${total}</span></div>
         <div class="stat-label">Total Attended</div>
       </div>
       <div class="card stat-card" style="padding: 20px;">
-        <div class="stat-change ${onlinePresentRate >= 50 ? 'up' : 'down'}">${onlinePresentRate}%</div>
+        <div class="stat-change ${onlinePresentRate >= 50 ? "up" : "down"}">${onlinePresentRate}%</div>
         <div class="stat-val" style="font-size: 2.2rem; font-family: var(--font-body); font-weight: 800;">${onlinePresent} <span style="font-size: 1.1rem; color: var(--slate-3); font-weight: 600;">/ ${onlineRegs.length}</span></div>
         <div class="stat-label">Online Attendance</div>
       </div>
@@ -818,21 +913,33 @@ function exportEventCSV() {
     alert("No attendees to export.");
     return;
   }
-  
-  const title = document.getElementById("spec-event-title").textContent.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+  const title = document
+    .getElementById("spec-event-title")
+    .textContent.replace(/[^a-z0-9]/gi, "_")
+    .toLowerCase();
   let csvContent = "data:text/csv;charset=utf-8,";
-  
+
   // Headers
-  csvContent += "First Name,Last Name,Email,Section,Category,Attendance Type,Status\n";
-  
+  csvContent +=
+    "First Name,Last Name,Email,Section,Category,Attendance Type,Status\n";
+
   // Rows
-  currentEventAttendees.forEach(a => {
+  currentEventAttendees.forEach((a) => {
     const status = a.attended == 1 ? "Present" : "Absent";
     const type = (a.attendance_type || "N/A").toUpperCase();
-    const row = [a.first_name, a.last_name, a.email, a.section, a.category, type, status];
+    const row = [
+      a.first_name,
+      a.last_name,
+      a.email,
+      a.section,
+      a.category,
+      type,
+      status,
+    ];
     csvContent += row.join(",") + "\n";
   });
-  
+
   // Trigger download
   const encodedUri = encodeURI(csvContent);
   const link = document.createElement("a");
@@ -850,12 +957,16 @@ async function toggleAttendance(attendeeId, newStatus) {
 
   try {
     const response = await fetch(`${BASE_URL}?action=toggle_attendance`, {
-      method: "POST", body: formData, credentials: "include",
+      method: "POST",
+      body: formData,
+      credentials: "include",
     });
     const data = await response.json();
     if (data.ok) openEventAttendees(currentEventId);
     else alert("Error: " + data.error);
-  } catch (err) { alert("Server error updating attendance."); }
+  } catch (err) {
+    alert("Server error updating attendance.");
+  }
 }
 let dbAdmins = [];
 
@@ -968,5 +1079,5 @@ document.addEventListener("DOMContentLoaded", async () => {
   loadAdmins();
   loadRecentAttendees();
 
-  renderEventsTable();  
+  renderEventsTable();
 });

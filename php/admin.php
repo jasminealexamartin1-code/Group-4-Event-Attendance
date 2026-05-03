@@ -288,6 +288,34 @@ if ($action === 'update_event') {
     }
 }
 
+// --- UPDATE EVENT STATUS (The "Stop" Button Logic) ---
+if ($action === 'update_event_status') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        json_out(['ok' => false, 'error' => 'Method not allowed'], 405);
+    }
+
+    // Security: Only logged-in admins can stop an event
+    if (empty($_SESSION['admin_id'])) {
+        json_out(['ok' => false, 'error' => 'Unauthorized. You must be logged in.'], 403);
+    }
+
+    $id = (int)($_POST['id'] ?? 0);
+    $status = trim((string)($_POST['status'] ?? ''));
+
+    // Validate that the status is one of your allowed values
+    if (!$id || !in_array($status, ['upcoming', 'live', 'past'])) {
+        json_out(['ok' => false, 'error' => 'Invalid ID or status.'], 400);
+    }
+
+    try {
+        $stmt = db()->prepare('UPDATE events SET status = ? WHERE id = ?');
+        $stmt->execute([$status, $id]);
+        json_out(['ok' => true]);
+    } catch (PDOException $e) {
+        json_out(['ok' => false, 'error' => 'Database Error: ' . $e->getMessage()], 500);
+    }
+}
+
 // --- GET LIST OF ADMINS ---
 if ($action === 'get_admins') {
     if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
@@ -347,10 +375,11 @@ if ($action === 'register_attendee') {
         json_out(['ok' => false, 'error' => 'Method not allowed'], 405);
     }
 
+    // Grab the data sent from the JavaScript form
     $event_id = (int)($_POST['event_id'] ?? 0);
     $first_name = trim((string)($_POST['first_name'] ?? ''));
     $last_name = trim((string)($_POST['last_name'] ?? ''));
-    $email = trim((string)($_POST['email'] ?? '')); 
+    $email = trim((string)($_POST['email'] ?? ''));
     $section = trim((string)($_POST['section'] ?? ''));
     $year_level = trim((string)($_POST['year_level'] ?? ''));
     $attendance_type = trim((string)($_POST['attendance_type'] ?? 'walkin'));
@@ -359,21 +388,26 @@ if ($action === 'register_attendee') {
         json_out(['ok' => false, 'error' => 'All fields are required.'], 400);
     }
 
-    // --- NEW VALIDATION LOGIC START ---
+    // --- NEW: CHECK IF EVENT IS STOPPED ---
     try {
-        // Check if this email is already registered for this specific event
-        $checkStmt = db()->prepare('SELECT id FROM attendees WHERE event_id = ? AND email = ? LIMIT 1');
-        $checkStmt->execute([$event_id, $email]);
-        
-        if ($checkStmt->fetch()) {
-            // If fetch() returns data, it means a row already exists!
-            json_out(['ok' => false, 'error' => 'This email is already registered for this event.'], 409);
+        $eventStmt = db()->prepare('SELECT status FROM events WHERE id = ? LIMIT 1');
+        $eventStmt->execute([$event_id]);
+        $eventData = $eventStmt->fetch();
+
+        if (!$eventData) {
+            json_out(['ok' => false, 'error' => 'This event does not exist.'], 404);
+        }
+
+        // The exact loophole closer:
+        if ($eventData['status'] === 'past') {
+            json_out(['ok' => false, 'error' => 'Registration is closed. This event has ended.'], 403);
         }
     } catch (PDOException $e) {
-        json_out(['ok' => false, 'error' => 'Database Error during validation: ' . $e->getMessage()], 500);
+        json_out(['ok' => false, 'error' => 'Database error checking event status: ' . $e->getMessage()], 500);
     }
-    // --- NEW VALIDATION LOGIC END ---
+    // --- END OF NEW CHECK ---
 
+    // Automatically assign the Category (SHS or College)
     $category = 'College'; 
     if (str_contains(strtolower($year_level), 'grade')) {
         $category = 'SHS';
