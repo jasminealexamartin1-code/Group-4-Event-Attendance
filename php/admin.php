@@ -40,7 +40,7 @@ try {
     $adminCount = db()->query("SELECT COUNT(*) FROM admins")->fetchColumn();
 
     if ($adminCount == 0) {
-        $defaultUser = 'EvenTrack Admin';
+        $defaultUser = 'EvenTrackAdmin';
         $defaultPass = password_hash('EvenTrackiacademy123', PASSWORD_DEFAULT); 
         
         $seedStmt = db()->prepare("INSERT INTO admins (username, password) VALUES (?, ?)");
