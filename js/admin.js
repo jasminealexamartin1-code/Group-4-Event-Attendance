@@ -2,6 +2,215 @@
 
 const BASE_URL = "http://127.0.0.1/EvenTrack/php/admin.php";
 
+// --- LOCATION DATA STRUCTURE ---
+const LOCATION_DATA = {
+  "2nd Floor": ["Room 201", "Room 202", "Room 203", "Room 204", "Room 205"],
+  "3rd Floor": ["Room 301", "Room 302", "Room 303", "Room 304"],
+  "4th Floor": ["Room 401", "Room 402", "Room 403", "Room 404"],
+  "5th Floor": ["Cafeteria Main Hall"],
+  "6th Floor": [
+    "601",
+    "602",
+    "603",
+    "604",
+    "605",
+    "606",
+    "607",
+    "608",
+    "609",
+    "610",
+    "611",
+    "612",
+    "613",
+    "614",
+    "615",
+    "616",
+    "617",
+    "Meeting Room 1",
+    "Meeting Room 2",
+    "Meeting Room 3",
+    "Meeting Room 4",
+    "Accreditation Room",
+  ],
+  "7th Floor": [
+    "701",
+    "702",
+    "703",
+    "704",
+    "705",
+    "706",
+    "707",
+    "708",
+    "709",
+    "710",
+    "711",
+    "712",
+    "713",
+    "714",
+    "715",
+    "716",
+    "717",
+    "SHS Library Extension",
+  ],
+  "8th Floor": [
+    "801",
+    "802",
+    "803",
+    "804",
+    "805",
+    "806",
+    "807",
+    "808",
+    "809",
+    "810",
+    "811",
+    "812",
+    "813",
+    "814",
+    "815",
+    "816",
+    "817",
+    "Computer Lab 1",
+    "Computer Lab 2",
+    "Computer Lab 3",
+    "Computer Lab 4",
+    "Computer Lab 5",
+    "Science Lab 1",
+    "Science Lab 2",
+    "Audio Visual Room",
+    "Main Library",
+  ],
+  "9th Floor": [
+    "901",
+    "902",
+    "903",
+    "904",
+    "905",
+    "906",
+    "907",
+    "908",
+    "909",
+    "910",
+    "911",
+    "912",
+    "913",
+    "914",
+    "915",
+    "916",
+    "917",
+    "Auditorium",
+  ],
+  "10th Floor": [
+    "Fashion Room 1",
+    "Fashion Room 2",
+    "Green Room/Photography Room",
+  ],
+  Rooftop: ["Lower Penthouse", "Upper Penthouse", "Rooftop Open Area"],
+  Virtual: ["Zoom", "Google Meet", "MS Teams", "Other Platform"],
+};
+
+// --- DEPENDENT DROPDOWN LOGIC ---
+function initLocationDropdowns() {
+  const floorSelect = document.getElementById("location-floor");
+  if (!floorSelect) return;
+
+  // Clear existing options except the first one
+  floorSelect.innerHTML = '<option value="">Select Floor...</option>';
+
+  // Populate the floors
+  for (const floor in LOCATION_DATA) {
+    floorSelect.add(new Option(floor, floor));
+  }
+}
+
+// --- FORM VALIDATION LOGIC (Untangled) ---
+let validateFormGlobal = null;
+
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("create-form");
+  if (!form) return;
+
+  const submitBtn = document.getElementById("create-submit-btn");
+  const titleInput = form.querySelector('[name="title"]');
+  const dateInput = form.querySelector('[name="date"]');
+
+  const floorSelect = document.getElementById("location-floor");
+  const roomSelect = document.getElementById("location-room");
+
+  const today = new Date().toISOString().split("T")[0];
+  if (dateInput) dateInput.setAttribute("min", today);
+
+  function toggleError(inputElement, errorId, isInvalid) {
+    const errorMsg = document.getElementById(errorId);
+    if (isInvalid) {
+      if (inputElement) inputElement.classList.add("is-invalid");
+      if (errorMsg) errorMsg.classList.add("show");
+    } else {
+      if (inputElement) inputElement.classList.remove("is-invalid");
+      if (errorMsg) errorMsg.classList.remove("show");
+    }
+  }
+
+  validateFormGlobal = function () {
+    let isValid = true;
+
+    // 1. Check Title
+    if (titleInput && titleInput.value.trim().length < 3) {
+      toggleError(titleInput, "title-error", true);
+      isValid = false;
+    } else {
+      toggleError(titleInput, "title-error", false);
+    }
+
+    // 2. Check Date (Allow past dates if editing, otherwise strict)
+    const isEditing = document.getElementById("event-id").value !== "";
+    if (dateInput) {
+      if (!dateInput.value || (!isEditing && dateInput.value < today)) {
+        toggleError(dateInput, "date-error", true);
+        isValid = false;
+      } else {
+        toggleError(dateInput, "date-error", false);
+      }
+    }
+
+    // 3. Check Location Dropdowns
+    if (!floorSelect.value || !roomSelect.value) {
+      if (floorSelect) floorSelect.classList.add("is-invalid");
+      if (roomSelect) roomSelect.classList.add("is-invalid");
+      isValid = false;
+    } else {
+      if (floorSelect) floorSelect.classList.remove("is-invalid");
+      if (roomSelect) roomSelect.classList.remove("is-invalid");
+    }
+
+    // Unlock or lock the submit button
+    submitBtn.disabled = !isValid;
+  };
+
+  form.addEventListener("input", validateFormGlobal);
+  form.addEventListener("change", validateFormGlobal);
+});
+
+function updateRoomDropdown() {
+  const floorSelect = document.getElementById("location-floor");
+  const roomSelect = document.getElementById("location-room");
+  const selectedFloor = floorSelect.value;
+
+  // Reset and disable room dropdown if no floor selected
+  roomSelect.innerHTML = '<option value="">Select Room...</option>';
+  if (!selectedFloor) {
+    roomSelect.disabled = true;
+    return;
+  }
+
+  // Enable and populate rooms based on selected floor
+  roomSelect.disabled = false;
+  const rooms = LOCATION_DATA[selectedFloor];
+  rooms.forEach((room) => {
+    roomSelect.add(new Option(room, room));
+  });
+}
+
 let dbEvents = [];
 
 async function loadDbEvents() {
@@ -48,7 +257,6 @@ function setAuthView(loggedIn) {
   const app = document.getElementById("admin-app");
   if (!gate || !app) return;
 
-  // change the CSS display property instead of using the hidden attribute
   if (loggedIn) {
     gate.style.display = "none";
     app.style.display = "block";
@@ -102,7 +310,6 @@ function setupAdminAuthUI() {
         setAuthView(true);
         loginForm.reset();
 
-        // NEW: Fetch all data immediately after a successful login!
         loadDbEvents();
         loadAdmins();
         loadRecentAttendees();
@@ -128,7 +335,6 @@ function setupAdminAuthUI() {
       const confirmPassword =
         document.getElementById("reg-confirm")?.value || "";
 
-      // NEW: Check if the email already exists in the frontend list
       const alreadyExists = dbAdmins.some(
         (admin) => admin.username.toLowerCase() === email.toLowerCase(),
       );
@@ -137,7 +343,7 @@ function setupAdminAuthUI() {
           "register-error",
           "This email is already in the list of admins.",
         );
-        return; // Stop the form submission
+        return;
       }
 
       const { res, data } = await authFetch(AUTH.register, {
@@ -147,7 +353,7 @@ function setupAdminAuthUI() {
       if (data.ok) {
         alert(`Successfully granted admin access to: ${email}`);
         registerForm.reset();
-        loadAdmins(); // Refresh table automatically
+        loadAdmins();
       } else {
         showAuthError(
           "register-error",
@@ -166,7 +372,7 @@ function setupAdminAuthUI() {
   }
 }
 
-// ── Tab Switching ──────────────────────────────────────────────────────
+// Tab Switching
 function switchTab(tabName, btn) {
   document
     .querySelectorAll(".tab-panel")
@@ -179,7 +385,7 @@ function switchTab(tabName, btn) {
   if (tabName === "analytics") setTimeout(renderCharts, 50);
 }
 
-// ── Dashboard Lists ────────────────────────────────────────────────────
+// Dashboard Lists
 function renderDashboardEvents() {
   const el = document.getElementById("dash-events-list");
 
@@ -189,13 +395,15 @@ function renderDashboardEvents() {
     return;
   }
 
-  // Display only the 4 most recently created real database events
+  // Display only the 4 most recently created events
   el.innerHTML = dbEvents
     .slice(0, 4)
     .map(
       (e) => `
     <div class="list-item">
-      <div class="list-thumb ${e.gradient || "grad-violet"}">${getMonogram(e.title || e.name || e.event_title)}</div>
+      <div class="list-thumb" style="overflow: hidden; padding: 0; background: var(--slate-4);">
+  <img src="${e.image_url || "img/default-event.jpg"}" style="width: 100%; height: 100%; object-fit: cover;" alt="Thumb">
+</div>
       <div class="list-info">
         <div class="list-name">${e.title || e.name || e.event_title}</div>
         <div class="list-sub">${e.date}</div>
@@ -228,7 +436,7 @@ function renderDashboardAttendees(attendees) {
     return;
   }
 
-  // Display the 4 most recent real registrations
+  // Display the 4 most recent registrations
   el.innerHTML = attendees
     .map((a) => {
       const evtName = a.event_name || a.event_title || "Unknown Event";
@@ -254,7 +462,6 @@ function renderDashboardAttendees(attendees) {
 function renderEventsTable() {
   const tbody = document.getElementById("events-tbody");
 
-  // Combine real database events with your static placeholders from data.js
   const allEvents = [...dbEvents, ...events];
 
   tbody.innerHTML = allEvents
@@ -263,7 +470,9 @@ function renderEventsTable() {
     <tr>
       <td>
         <div class="td-event">
-          <div class="td-thumb ${e.gradient || "grad-violet"}">${getMonogram(e.title || e.event_title || e.name)}</div>
+         <div class="td-thumb" style="overflow: hidden; padding: 0; background: var(--slate-4);">
+  <img src="${e.image_url || "img/default-event.jpg"}" style="width: 100%; height: 100%; object-fit: cover;" alt="Event">
+</div>
           <div>
             <div class="td-name">${e.title || e.event_title || e.name}</div>
             <div class="td-sub">${e.location}</div>
@@ -281,7 +490,7 @@ function renderEventsTable() {
           <button class="action-btn del" title="Delete" onclick="deleteEvent('${e.id}')">🗑</button>
           
           ${
-            /* NEW TOGGLE BUTTON LOGIC */ !isNaN(e.id)
+            !isNaN(e.id)
               ? `
             <button class="action-btn" 
                     title="${e.status === "past" ? "Resume Event" : "Stop Event"}" 
@@ -356,246 +565,22 @@ function renderPopularList() {
     .join("");
 }
 
-// ── Charts (pure canvas, no library) ──────────────────────────────────
-let chartsRendered = false;
-function renderCharts() {
-  if (chartsRendered) return;
-  chartsRendered = true;
-  renderPopularList();
-  drawLineChart();
-  drawDonutChart();
-  drawBarChart();
-}
-
-function drawLineChart() {
-  const canvas = document.getElementById("chart-reg");
-  if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  canvas.width = canvas.offsetWidth || 400;
-  canvas.height = 220;
-  const W = canvas.width,
-    H = canvas.height;
-  const data = [40, 65, 90, 75, 120, 95, 150, 175, 210, 195, 230, 250];
-  const labels = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  const pad = { top: 20, right: 20, bottom: 36, left: 44 };
-  const gW = W - pad.left - pad.right;
-  const gH = H - pad.top - pad.bottom;
-  const max = Math.max(...data);
-
-  ctx.clearRect(0, 0, W, H);
-
-  // Grid lines
-  ctx.strokeStyle = "rgba(255,255,255,0.06)";
-  ctx.lineWidth = 1;
-  for (let i = 0; i <= 4; i++) {
-    const y = pad.top + (gH / 4) * i;
-    ctx.beginPath();
-    ctx.moveTo(pad.left, y);
-    ctx.lineTo(W - pad.right, y);
-    ctx.stroke();
-  }
-
-  // Y-axis labels
-  ctx.fillStyle = "rgba(148,163,184,0.7)";
-  ctx.font = "11px Figtree, sans-serif";
-  ctx.textAlign = "right";
-  for (let i = 0; i <= 4; i++) {
-    const val = Math.round(max - (max / 4) * i);
-    const y = pad.top + (gH / 4) * i;
-    ctx.fillText(val, pad.left - 8, y + 4);
-  }
-
-  // X-axis labels
-  ctx.textAlign = "center";
-  labels.forEach((lbl, i) => {
-    const x = pad.left + (gW / (data.length - 1)) * i;
-    ctx.fillText(lbl, x, H - 8);
-  });
-
-  // Gradient fill
-  const points = data.map((v, i) => ({
-    x: pad.left + (gW / (data.length - 1)) * i,
-    y: pad.top + gH - (v / max) * gH,
-  }));
-  const grad = ctx.createLinearGradient(0, pad.top, 0, H - pad.bottom);
-  grad.addColorStop(0, "rgba(139,92,246,0.35)");
-  grad.addColorStop(1, "rgba(139,92,246,0)");
-  ctx.beginPath();
-  ctx.moveTo(points[0].x, H - pad.bottom);
-  points.forEach((p) => ctx.lineTo(p.x, p.y));
-  ctx.lineTo(points[points.length - 1].x, H - pad.bottom);
-  ctx.closePath();
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  // Line
-  ctx.beginPath();
-  ctx.strokeStyle = "#8b5cf6";
-  ctx.lineWidth = 2.5;
-  ctx.lineJoin = "round";
-  points.forEach((p, i) =>
-    i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y),
-  );
-  ctx.stroke();
-
-  // Dots
-  points.forEach((p) => {
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-    ctx.fillStyle = "#8b5cf6";
-    ctx.fill();
-    ctx.strokeStyle = "#0d1526";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  });
-}
-
-function drawDonutChart() {
-  const canvas = document.getElementById("chart-cat");
-  if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  canvas.width = canvas.offsetWidth || 400;
-  canvas.height = 220;
-  const W = canvas.width,
-    H = canvas.height;
-  const cx = W / 2,
-    cy = H / 2 - 10,
-    r = Math.min(W, H) * 0.32,
-    inner = r * 0.55;
-
-  const slices = [
-    { label: "College", value: 4, color: "#60a5fa" },
-    { label: "SHS", value: 2, color: "#fbbf24" },
-    { label: "Internship", value: 2, color: "#c084fc" },
-  ];
-  const total = slices.reduce((s, x) => s + x.value, 0);
-  let angle = -Math.PI / 2;
-
-  slices.forEach((sl) => {
-    const sweep = (sl.value / total) * Math.PI * 2;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.arc(cx, cy, r, angle, angle + sweep);
-    ctx.closePath();
-    ctx.fillStyle = sl.color;
-    ctx.fill();
-    angle += sweep;
-  });
-
-  // Hole
-  ctx.beginPath();
-  ctx.arc(cx, cy, inner, 0, Math.PI * 2);
-  ctx.fillStyle = "#0d1526";
-  ctx.fill();
-
-  // Center label
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 14px Syne, sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("Events", cx, cy - 8);
-  ctx.fillStyle = "rgba(148,163,184,0.8)";
-  ctx.font = "11px Figtree, sans-serif";
-  ctx.fillText(total + " total", cx, cy + 10);
-
-  // Legend
-  const lgY = H - 26;
-  let lgX = (W - slices.length * 100) / 2;
-  slices.forEach((sl) => {
-    ctx.fillStyle = sl.color;
-    ctx.beginPath();
-    ctx.roundRect(lgX, lgY, 10, 10, 2);
-    ctx.fill();
-    ctx.fillStyle = "rgba(148,163,184,0.8)";
-    ctx.font = "11px Figtree, sans-serif";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-    ctx.fillText(sl.label, lgX + 14, lgY + 5);
-    lgX += 100;
-  });
-}
-
-function drawBarChart() {
-  const canvas = document.getElementById("chart-att");
-  if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  canvas.width = canvas.offsetWidth || 400;
-  canvas.height = 220;
-  const W = canvas.width,
-    H = canvas.height;
-
-  const items = events.slice(0, 6).map((e) => ({
-    label: e.title.split(" ").slice(0, 2).join(" "),
-    pct: Math.round((e.attendees / e.capacity) * 100),
-  }));
-  const pad = { top: 16, right: 16, bottom: 40, left: 16 };
-  const gW = W - pad.left - pad.right;
-  const gH = H - pad.top - pad.bottom;
-  const bW = (gW / items.length) * 0.55;
-  const gap = gW / items.length;
-
-  ctx.clearRect(0, 0, W, H);
-
-  items.forEach((item, i) => {
-    const x = pad.left + gap * i + (gap - bW) / 2;
-    const barH = (item.pct / 100) * gH;
-    const y = pad.top + gH - barH;
-
-    // Track
-    ctx.fillStyle = "rgba(255,255,255,0.05)";
-    ctx.beginPath();
-    ctx.roundRect(x, pad.top, bW, gH, 6);
-    ctx.fill();
-
-    // Fill
-    const grad = ctx.createLinearGradient(0, y, 0, y + barH);
-    grad.addColorStop(0, "#8b5cf6");
-    grad.addColorStop(1, "#d946ef");
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.roundRect(x, y, bW, barH, 6);
-    ctx.fill();
-
-    // Pct label
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 11px Figtree, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "bottom";
-    ctx.fillText(item.pct + "%", x + bW / 2, y - 4);
-
-    // Event label
-    ctx.fillStyle = "rgba(148,163,184,0.8)";
-    ctx.font = "10px Figtree, sans-serif";
-    ctx.textBaseline = "top";
-    ctx.fillText(item.label, x + bW / 2, H - pad.bottom + 6);
-  });
-}
-
 // ── Modal & CRUD Logic ─────────────────────────────────────────────────
 function showCreateModal() {
   const form = document.getElementById("create-form");
   form.reset();
-  document.getElementById("event-id").value = ""; // Clear hidden ID
+  document.getElementById("event-id").value = "";
   document.getElementById("modal-title").textContent = "Create New Event";
-  document.getElementById("modal-submit-btn").textContent = "Create Event";
+  document.getElementById("create-submit-btn").textContent = "Create Event";
+  document.getElementById("create-modal").style.display = "flex";
+
+  initLocationDropdowns();
+  updateRoomDropdown();
+
   document.getElementById("create-modal").style.display = "flex";
 }
 
 function openEditModal(id) {
-  // Prevent editing static placeholders from data.js
   if (isNaN(id)) {
     alert("This is a placeholder event and cannot be edited.");
     return;
@@ -607,19 +592,34 @@ function openEditModal(id) {
   const form = document.getElementById("create-form");
   form.reset();
 
-  // Switch UI to "Edit" Mode
   document.getElementById("event-id").value = event.id;
   document.getElementById("modal-title").textContent = "Edit Event";
-  document.getElementById("modal-submit-btn").textContent = "Save Changes";
+  document.getElementById("create-submit-btn").textContent = "Save Changes";
 
   // Fill text fields
   form.elements["title"].value = event.name || event.title || "";
   form.elements["date"].value = event.date || "";
-  form.elements["location"].value = event.location || "";
+  form.elements["time"].value = event.time || "";
   form.elements["capacity"].value = event.capacity || "";
   form.elements["description"].value = event.description || "";
 
-  // Fill category checkboxes (handle multiple)
+  const locationString = event.location || "";
+  document.getElementById("final-location").value = locationString;
+
+  const parts = locationString.split(" - ");
+
+  initLocationDropdowns();
+
+  if (parts.length === 2 && LOCATION_DATA[parts[0]]) {
+    document.getElementById("location-floor").value = parts[0];
+    updateRoomDropdown();
+    document.getElementById("location-room").value = parts[1];
+  } else {
+    document.getElementById("location-floor").value = "";
+    updateRoomDropdown();
+  }
+
+  // Fill category checkboxes
   const categories = (event.category || "").split(",").map((s) => s.trim());
   form.querySelectorAll('input[name="category[]"]').forEach((cb) => {
     cb.checked =
@@ -627,7 +627,7 @@ function openEditModal(id) {
       categories.includes(cb.value === "Internship" ? "Intern" : "");
   });
 
-  // Fill type checkboxes (handle multiple)
+  // Fill type checkboxes
   const types = (event.type || "")
     .split(",")
     .map((s) => s.trim().toLowerCase());
@@ -636,6 +636,9 @@ function openEditModal(id) {
   });
 
   document.getElementById("create-modal").style.display = "flex";
+
+  // Trigger validation so the "Save Changes" button unlocks
+  if (typeof validateFormGlobal === "function") validateFormGlobal();
 }
 
 async function deleteEvent(id) {
@@ -681,7 +684,7 @@ async function toggleEventStatus(id, currentStatus) {
 
   // Determine what we are doing based on the current status
   const isStopping = currentStatus !== "past";
-  const newStatus = isStopping ? "past" : "upcoming"; // Resumes to 'upcoming'
+  const newStatus = isStopping ? "past" : "upcoming";
   const actionWord = isStopping ? "stop" : "resume";
   const confirmMsg = isStopping
     ? "Are you sure you want to STOP this event? Registration will be closed."
@@ -703,9 +706,8 @@ async function toggleEventStatus(id, currentStatus) {
 
     if (data.ok) {
       alert(`Event ${actionWord}d successfully.`);
-      loadDbEvents(); // Refresh the main table
+      loadDbEvents();
 
-      // Refresh the attendees page if we are currently looking at it
       if (currentEventId == id) {
         openEventAttendees(id);
       }
@@ -728,10 +730,18 @@ function closeModalOutside(e) {
 async function handleCreate(e) {
   e.preventDefault();
 
+  const floor = document.getElementById("location-floor").value;
+  const room = document.getElementById("location-room").value;
+  if (!floor || !room) {
+    alert("Please select both a Floor and a Specific Room.");
+    return;
+  }
+
+  document.getElementById("final-location").value = `${floor} - ${room}`;
+
   const form = e.target;
   const formData = new FormData(form);
 
-  // Check if hidden ID field has a value to determine if editing or creating
   const isEdit = !!formData.get("id");
   const action = isEdit ? "update_event" : "create_event";
 
@@ -740,7 +750,7 @@ async function handleCreate(e) {
     if (
       !confirm("Are you sure you want to apply these changes to the event?")
     ) {
-      return; // Stop submission if they click cancel
+      return;
     }
   }
 
@@ -754,7 +764,7 @@ async function handleCreate(e) {
     if (data.ok) {
       closeModal();
       form.reset();
-      loadDbEvents(); // Refresh table automatically
+      loadDbEvents();
     } else {
       alert("Error: " + data.error);
     }
@@ -765,7 +775,7 @@ async function handleCreate(e) {
 
 // --- ADMIN MANAGEMENT LOGIC ---
 let currentEventId = null;
-let currentEventAttendees = []; // Added to store data for the CSV export!
+let currentEventAttendees = [];
 
 async function openEventAttendees(eventId) {
   if (isNaN(eventId)) {
@@ -879,7 +889,7 @@ function renderEventAttendees(attendees) {
   const shs = attendees.filter((a) => a.category === "SHS").length;
   const college = attendees.filter((a) => a.category === "College").length;
 
-  // 3. Inject Stats UI (Using var(--font-body) to un-squish the numbers!)
+  // 3. Inject Stats UI
   if (statsContainer) {
     statsContainer.style.display = "grid";
     if (exportBtn) exportBtn.style.display = "flex";
@@ -900,7 +910,7 @@ function renderEventAttendees(attendees) {
         <div class="stat-label">Walk-in vs Online Mix</div>
       </div>
       <div class="card stat-card" style="padding: 20px;">
-        <div class="stat-val" style="font-size: 2.2rem; font-family: var(--font-body); font-weight: 800;">${shs} <span style="font-size: 1.1rem; color: var(--slate-3); font-weight: 600;">/ ${college}</span></div>
+        <div class="stat-val" style="font-size: 2.2rem; font-family: var(--font-body); font-weight: 800;">${shs} <span style="font-size: 1.1rem; color: var(--slate-3); font-weight: 600;">: ${college}</span></div>
         <div class="stat-label">SHS / College Ratio</div>
       </div>
     `;
@@ -986,7 +996,7 @@ async function deleteAttendee(attendeeId) {
     const data = await response.json();
 
     if (data.ok) {
-      openEventAttendees(currentEventId); // Instantly refresh table
+      openEventAttendees(currentEventId);
     } else {
       alert("Error: " + data.error);
     }
@@ -998,7 +1008,6 @@ async function deleteAttendee(attendeeId) {
 // Fetch the admins from the database
 async function loadAdmins() {
   try {
-    // Added credentials: 'include' so PHP knows you are logged in
     const response = await fetch(`${BASE_URL}?action=get_admins`, {
       credentials: "include",
     });
@@ -1056,11 +1065,11 @@ async function deleteAdmin(id) {
     const response = await fetch(`${BASE_URL}?action=delete_admin`, {
       method: "POST",
       body: formData,
-      credentials: "include", // <--- Added this!
+      credentials: "include",
     });
     const data = await response.json();
     if (data.ok) {
-      loadAdmins(); // Refresh the table
+      loadAdmins();
     } else {
       alert("Error: " + data.error);
     }
@@ -1069,12 +1078,10 @@ async function deleteAdmin(id) {
   }
 }
 
-// ── Init ───────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
   setupAdminAuthUI();
   await initAdminAuth();
 
-  // Fetch data immediately if already logged in on page load
   loadDbEvents();
   loadAdmins();
   loadRecentAttendees();

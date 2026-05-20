@@ -7,7 +7,6 @@ header('Access-Control-Allow-Credentials: true');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
-// Handle the "preflight" request that browsers send before POST requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit;
@@ -16,10 +15,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 session_start();
 header('Content-Type: application/json; charset=utf-8');
 
-/**
- * XAMPP default: MySQL on 127.0.0.1, user root, empty password.
- * Change these if your local MySQL differs.
- */
 const DB_HOST = '127.0.0.1';
 const DB_NAME = 'EvenTrackdb';
 const DB_USER = 'root';
@@ -41,6 +36,19 @@ function db(): PDO
 
     return $pdo;
 }
+try {
+    $adminCount = db()->query("SELECT COUNT(*) FROM admins")->fetchColumn();
+
+    if ($adminCount == 0) {
+        $defaultUser = 'EvenTrack Admin';
+        $defaultPass = password_hash('EvenTrackiacademy123', PASSWORD_DEFAULT); 
+        
+        $seedStmt = db()->prepare("INSERT INTO admins (username, password) VALUES (?, ?)");
+        $seedStmt->execute([$defaultUser, $defaultPass]);
+    }
+} catch (PDOException $e) {
+    
+}
 
 function json_out(array $payload, int $status = 200): void
 {
@@ -54,6 +62,44 @@ function read_json_body(): array
     $raw = file_get_contents('php://input');
     $data = json_decode($raw ?: '', true);
     return is_array($data) ? $data : [];
+}
+
+function processImageUpload($fileKey) {
+    // Check if file was uploaded without errors
+    if (!isset($_FILES[$fileKey]) || $_FILES[$fileKey]['error'] !== UPLOAD_ERR_OK) {
+        return null;
+    }
+
+    $fileInfo = $_FILES[$fileKey];
+    $tmpName = $fileInfo['tmp_name'];
+    $fileSize = $fileInfo['size'];
+    $fileName = basename($fileInfo['name']);
+    
+    // img validation: 5MB limit
+    $maxSize = 5 * 1024 * 1024; 
+    if ($fileSize > $maxSize) return null;
+
+    $allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mimeType = finfo_file($finfo, $tmpName);
+    finfo_close($finfo);
+    
+    if (!in_array($mimeType, $allowedTypes)) return null;
+
+    // Create unique filename and upload path
+    $ext = pathinfo($fileName, PATHINFO_EXTENSION);
+    $newName = uniqid('event_', true) . '.' . $ext;
+    
+    $uploadDir = __DIR__ . '/../uploads/'; 
+    if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+
+    $destination = $uploadDir . $newName;
+
+    if (move_uploaded_file($tmpName, $destination)) {
+        return 'uploads/' . $newName;
+    }
+
+    return null;
 }
 
 $action = strtolower(trim((string)($_GET['action'] ?? '')));
@@ -128,9 +174,8 @@ if ($action === 'register') {
         json_out(['ok' => false, 'error' => 'Method not allowed'], 405);
     }
 
-    // Security check: Only logged-in admins can invite others
     if (empty($_SESSION['admin_id'])) {
-        json_out(['ok' => false, 'error' => 'Unauthorized. You must be logged in to add admins.'], 403);
+        json_out(['ok' => false, 'error' => 'Unauthorized. You must be logged in as admin.'], 403);
     }
 
     $input = read_json_body();
@@ -191,44 +236,46 @@ if ($action === 'create_event') {
 
     $title = trim((string)($_POST['title'] ?? ''));
     $date = trim((string)($_POST['date'] ?? ''));
+    $time = trim((string)($_POST['time'] ?? ''));
     $location = trim((string)($_POST['location'] ?? ''));
     $capacity = (int)($_POST['capacity'] ?? 0);
     $description = trim((string)($_POST['description'] ?? ''));
 
-    // Handle multiple categories (Checkbox Arrays)
+    // Process the new image
+    $imageUrl = processImageUpload('event_image');
+
     $cats = $_POST['category'] ?? [];
     if (!is_array($cats)) $cats = [$cats];
     $category = implode(', ', array_map('trim', $cats));
 
-    // Handle multiple types (Checkbox Arrays)
     $types = $_POST['type'] ?? [];
     if (!is_array($types)) $types = [$types];
     $type = implode(', ', array_map('trim', $types));
 
-    if ($title === '' || $date === '' || $location === '') {
-        json_out(['ok' => false, 'error' => 'Title, date, and location are required.'], 400);
+    if ($title === '' || $date === '' || $time === '' || $location === '') {
+        json_out(['ok' => false, 'error' => 'Title, date, time, and location are required.'], 400);
     }
     if ($category === '' || $type === '') {
         json_out(['ok' => false, 'error' => 'At least one Category and Type must be selected.'], 400);
     }
 
     try {
-        // Reverted 'event_title' back to 'name' to match your live database!
-        $stmt = db()->prepare('INSERT INTO events (name, description, `date`, location, category, capacity, status, type) VALUES (?, ?, ?, ?, ?, ?, \'upcoming\', ?)');
-        
-        $stmt->execute([$title, $description === '' ? null : $description, $date, $location, $category, $capacity, $type]);
-
+        $stmt = db()->prepare('INSERT INTO events (name, description, `date`, `time`, location, category, capacity, status, type, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, \'upcoming\', ?, ?)');
+                 
+        $stmt->execute([$title, $description === '' ? null : $description, $date, $time, $location, $category, $capacity, $type, $imageUrl]);
         $newId = (int)db()->lastInsertId();
-        
+                 
         json_out(['ok' => true, 'event' => [
             'id' => $newId,
             'title' => $title,
             'category' => $category,
             'type' => $type,
             'date' => $date,
+            'time' => $time,
             'location' => $location,
             'capacity' => $capacity,
             'description' => $description,
+            'image_url' => $imageUrl,
             'attendees' => 0,
             'status' => 'upcoming',
         ]]);
@@ -262,9 +309,12 @@ if ($action === 'update_event') {
     $id = (int)($_POST['id'] ?? 0);
     $title = trim((string)($_POST['title'] ?? ''));
     $date = trim((string)($_POST['date'] ?? ''));
+    $time = trim((string)($_POST['time'] ?? ''));
     $location = trim((string)($_POST['location'] ?? ''));
     $capacity = (int)($_POST['capacity'] ?? 0);
     $description = trim((string)($_POST['description'] ?? ''));
+
+    $newImageUrl = processImageUpload('event_image');
 
     $cats = $_POST['category'] ?? [];
     if (!is_array($cats)) $cats = [$cats];
@@ -274,21 +324,27 @@ if ($action === 'update_event') {
     if (!is_array($types)) $types = [$types];
     $type = implode(', ', array_map('trim', $types));
 
-    if (!$id || $title === '' || $date === '' || $location === '') {
-        json_out(['ok' => false, 'error' => 'ID, Title, date, and location are required.'], 400);
+    if (!$id || $title === '' || $date === '' || $time === '' || $location === '') {
+        json_out(['ok' => false, 'error' => 'ID, Title, date, time, and location are required.'], 400);
     }
 
     try {
-        // Using 'name' as it is defined in your current create_event query
-        $stmt = db()->prepare('UPDATE events SET name=?, description=?, `date`=?, location=?, category=?, capacity=?, type=? WHERE id=?');
-        $stmt->execute([$title, $description === '' ? null : $description, $date, $location, $category, $capacity, $type, $id]);
+        if ($newImageUrl) {
+            // New photo uploaded: Update capacity AND image_url
+            $stmt = db()->prepare('UPDATE events SET name=?, description=?, `date`=?, `time`=?, location=?, category=?, capacity=?, type=?, image_url=? WHERE id=?');
+            $stmt->execute([$title, $description === '' ? null : $description, $date, $time, $location, $category, $capacity, $type, $newImageUrl, $id]);
+        } else {
+            // No new photo: Update capacity, ignore image_url
+            $stmt = db()->prepare('UPDATE events SET name=?, description=?, `date`=?, `time`=?, location=?, category=?, capacity=?, type=? WHERE id=?');
+            $stmt->execute([$title, $description === '' ? null : $description, $date, $time, $location, $category, $capacity, $type, $id]);
+        }
         json_out(['ok' => true]);
     } catch (PDOException $e) {
         json_out(['ok' => false, 'error' => 'Database Error: ' . $e->getMessage()], 500);
     }
 }
 
-// --- UPDATE EVENT STATUS (The "Stop" Button Logic) ---
+// stop button
 if ($action === 'update_event_status') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         json_out(['ok' => false, 'error' => 'Method not allowed'], 405);
@@ -302,7 +358,6 @@ if ($action === 'update_event_status') {
     $id = (int)($_POST['id'] ?? 0);
     $status = trim((string)($_POST['status'] ?? ''));
 
-    // Validate that the status is one of your allowed values
     if (!$id || !in_array($status, ['upcoming', 'live', 'past'])) {
         json_out(['ok' => false, 'error' => 'Invalid ID or status.'], 400);
     }
@@ -321,13 +376,11 @@ if ($action === 'get_admins') {
     if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
         json_out(['ok' => false, 'error' => 'Method not allowed'], 405);
     }
-    // Security check
     if (empty($_SESSION['admin_id'])) {
         json_out(['ok' => false, 'error' => 'Unauthorized'], 403);
     }
 
     try {
-        // Only select id and username. NEVER select passwords.
         $stmt = db()->query('SELECT id, username FROM admin ORDER BY id ASC');
         $admins = $stmt->fetchAll();
         json_out(['ok' => true, 'admins' => $admins]);
@@ -336,12 +389,12 @@ if ($action === 'get_admins') {
     }
 }
 
-// --- DELETE ADMIN ---
+// delete admin 
 if ($action === 'delete_admin') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         json_out(['ok' => false, 'error' => 'Method not allowed'], 405);
     }
-    // Security check
+
     if (empty($_SESSION['admin_id'])) {
         json_out(['ok' => false, 'error' => 'Unauthorized'], 403);
     }
@@ -356,7 +409,7 @@ if ($action === 'delete_admin') {
     if ($id === (int)$_SESSION['admin_id']) {
         json_out(['ok' => false, 'error' => 'You cannot delete your own account!'], 400);
     }
-    if ($id === 1) { // Assuming ID 1 is your Master Superadmin
+    if ($id === 1) { // Assuming ID 1 is Superadmin
         json_out(['ok' => false, 'error' => 'You cannot delete the Master Admin account.'], 403);
     }
 
@@ -369,57 +422,69 @@ if ($action === 'delete_admin') {
     }
 }
 
-// --- REGISTER ATTENDEE ---
 if ($action === 'register_attendee') {
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        json_out(['ok' => false, 'error' => 'Method not allowed'], 405);
-    }
-
-    // Grab the data sent from the JavaScript form
-    $event_id = (int)($_POST['event_id'] ?? 0);
-    $first_name = trim((string)($_POST['first_name'] ?? ''));
-    $last_name = trim((string)($_POST['last_name'] ?? ''));
+    
+    $eventId = $_POST['event_id'] ?? '';
+    $firstName = trim((string)($_POST['first_name'] ?? ''));
+    $lastName = trim((string)($_POST['last_name'] ?? ''));
     $email = trim((string)($_POST['email'] ?? ''));
     $section = trim((string)($_POST['section'] ?? ''));
-    $year_level = trim((string)($_POST['year_level'] ?? ''));
-    $attendance_type = trim((string)($_POST['attendance_type'] ?? 'walkin'));
+    $yearLevel = trim((string)($_POST['year_level'] ?? ''));
+    $attendanceType = trim((string)($_POST['attendance_type'] ?? 'walkin'));
 
-    if (!$event_id || $first_name === '' || $last_name === '' || $email === '' || $section === '' || $year_level === '') {
-        json_out(['ok' => false, 'error' => 'All fields are required.'], 400);
+    if (empty($eventId) || empty($firstName) || empty($lastName) || empty($email) || empty($section) || empty($yearLevel)) {
+        echo json_encode(["ok" => false, "error" => "All fields are required."]);
+        exit;
     }
 
-    // --- NEW: CHECK IF EVENT IS STOPPED ---
+    $category = 'College'; // Default to College
+    if (str_contains(strtolower($yearLevel), 'grade')) {
+        $category = 'SHS'; // If 'grade 11' or 'grade 12', switch to SHS
+    }
+
+    // iacad email only validation
+    if (!preg_match('/@iacademy\.edu\.ph$/i', $email)) {
+        echo json_encode(["ok" => false, "error" => "Registration restricted: You must use a valid @iacademy.edu.ph email address."]);
+        exit;
+    }
+
     try {
-        $eventStmt = db()->prepare('SELECT status FROM events WHERE id = ? LIMIT 1');
-        $eventStmt->execute([$event_id]);
-        $eventData = $eventStmt->fetch();
+        // duplicate emails validation
+        $dupStmt = db()->prepare("SELECT id FROM attendees WHERE email = ? AND event_id = ?");
+        $dupStmt->execute([$email, $eventId]);
+        if ($dupStmt->rowCount() > 0) {
+            echo json_encode(["ok" => false, "error" => "You are already registered for this event!"]);
+            exit;
+        }
+
+        // event capacity validation (doesnt accept more attendees than the event's capacity)
+        $capStmt = db()->prepare("
+            SELECT capacity, 
+            (SELECT COUNT(*) FROM attendees WHERE event_id = ?) as current_count 
+            FROM events WHERE id = ?
+        ");
+        $capStmt->execute([$eventId, $eventId]);
+        $eventData = $capStmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$eventData) {
-            json_out(['ok' => false, 'error' => 'This event does not exist.'], 404);
+            echo json_encode(["ok" => false, "error" => "Event not found."]);
+            exit;
         }
 
-        // The exact loophole closer:
-        if ($eventData['status'] === 'past') {
-            json_out(['ok' => false, 'error' => 'Registration is closed. This event has ended.'], 403);
+        if ($eventData['current_count'] >= $eventData['capacity']) {
+            echo json_encode(["ok" => false, "error" => "Registration Closed: This event has reached its maximum capacity."]);
+            exit;
         }
-    } catch (PDOException $e) {
-        json_out(['ok' => false, 'error' => 'Database error checking event status: ' . $e->getMessage()], 500);
-    }
-    // --- END OF NEW CHECK ---
 
-    // Automatically assign the Category (SHS or College)
-    $category = 'College'; 
-    if (str_contains(strtolower($year_level), 'grade')) {
-        $category = 'SHS';
-    }
+        $stmt = db()->prepare("INSERT INTO attendees (event_id, first_name, last_name, email, section, year_level, category, attendance_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$eventId, $firstName, $lastName, $email, $section, $yearLevel, $category, $attendanceType]);
 
-    try {
-        $stmt = db()->prepare('INSERT INTO attendees (event_id, first_name, last_name, email, section, year_level, category, attendance_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-        $stmt->execute([$event_id, $first_name, $last_name, $email, $section, $year_level, $category, $attendance_type]);
-        json_out(['ok' => true]);
+        echo json_encode(["ok" => true]);
+
     } catch (PDOException $e) {
-        json_out(['ok' => false, 'error' => 'Database Error: ' . $e->getMessage()], 500);
+        echo json_encode(["ok" => false, "error" => "Database error: " . $e->getMessage()]);
     }
+    exit;
 }
 
 // --- GET ATTENDEES FOR A SPECIFIC EVENT ---
@@ -437,14 +502,12 @@ if ($action === 'get_event_attendees') {
         $stmt->execute([$event_id]);
         $attendees = $stmt->fetchAll();
         
-        // FIX: Using SELECT * to grab the name regardless of whether your DB uses 'name' or 'event_title'
         $stmt2 = db()->prepare('SELECT * FROM events WHERE id = ?');
         $stmt2->execute([$event_id]);
         $event = $stmt2->fetch();
 
         json_out(['ok' => true, 'attendees' => $attendees, 'event' => $event]);
     } catch (PDOException $e) {
-        // Now returns the exact database error back to JavaScript
         json_out(['ok' => false, 'error' => 'Database error: ' . $e->getMessage()], 500);
     }
 }
@@ -487,6 +550,7 @@ if ($action === 'delete_attendee') {
     }
 }
 
+
 //recent registrations 
 
 if ($action === 'get_recent_attendees') {
@@ -502,3 +566,4 @@ if ($action === 'get_recent_attendees') {
     }
 }
 json_out(['ok' => false, 'error' => 'Unknown action.'], 404);
+

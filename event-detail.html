@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Event Detail — EvenTrack</title>
-  <link rel="stylesheet" href="css/styles.css"/>
-  <link rel="stylesheet" href="css/event-detail.css"/>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/event-detail.css" />
 </head>
+
 <body>
   <div id="navbar"></div>
   <main id="page-content">
@@ -19,4 +21,11 @@
   <script src="js/main.js"></script>
   <script src="js/event-detail.js"></script>
 </body>
+
+<!-- gallery feature-->
+<div id="image-modal" class="image-modal-overlay" onclick="closeImageModal()">
+  <span class="image-modal-close" onclick="closeImageModal()">&times;</span>
+  <img class="image-modal-content" id="full-screen-image" alt="Full Screen Event Image">
+</div>
+
 </html>

@@ -1,9 +1,9 @@
-// ── Register Page ──────────────────────────────────────────────────────
+// Register Page
 let attendanceType = "walkin";
 
 document.addEventListener("DOMContentLoaded", async () => {
   const id = getParam("id");
-  attendanceType = getParam("type") || "walkin"; // Grab type from URL
+  attendanceType = getParam("type") || "walkin";
   const main = document.getElementById("page-content");
 
   let dbEvents = [];
@@ -53,7 +53,7 @@ function renderForm(event, container) {
               <div class="form-group">
                 <label class="form-label">First Name *</label>
                 <input type="text" name="first_name" class="form-input" placeholder="Juan" required/>
-              </div>
+              </div>  
               <div class="form-group" style="margin-top: 0;">
                 <label class="form-label">Last Name *</label>
                 <input type="text" name="last_name" class="form-input" placeholder="Dela Cruz" required/>
@@ -118,9 +118,14 @@ function renderForm(event, container) {
             body: formData,
           },
         );
+
         const data = await response.json();
-        if (data.ok) showSuccess(event);
-        else alert("Registration failed: " + data.error);
+
+        if (data.ok) {
+          showSuccess(event);
+        } else {
+          alert("Registration failed: " + data.error);
+        }
       } catch (err) {
         alert("Server error.");
       }

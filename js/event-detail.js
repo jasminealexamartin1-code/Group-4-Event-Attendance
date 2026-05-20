@@ -1,9 +1,8 @@
-// ── Event Detail Page ──────────────────────────────────────────────────
+// Event Detail Page
 document.addEventListener("DOMContentLoaded", async () => {
   const id = getParam("id");
   const main = document.getElementById("page-content");
 
-  // 1. Fetch live events from DB using the FULL PATH
   let dbEvents = [];
   try {
     const res = await fetch(
@@ -14,7 +13,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       dbEvents = data.events.map((e) => ({
         ...e,
         title: e.title || e.event_title || e.name,
-        monogram: getMonogram(e.title || e.event_title || e.name),
         gradient: e.gradient || "grad-violet",
         fullDescription: e.description || "No detailed description available.",
         attendees: e.attendees || 0,
@@ -29,10 +27,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.error(err);
   }
 
-  // 2. Combine DB events with static placeholders
   const allEvents = [...dbEvents, ...events];
 
-  // 3. Find event (Using String() so '1' matches 1)
   const event = allEvents.find((e) => String(e.id) === String(id));
 
   if (!event) {
@@ -50,7 +46,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.title = `${event.title} — EvenTrack`;
   const pct = Math.round((event.attendees / event.capacity) * 100);
 
-  // Exclusive AND Inclusive button logic
   const typesStr = (event.type || "walkin").toLowerCase();
   const hasOnline = typesStr.includes("online");
   const hasWalkin = typesStr.includes("walkin");
@@ -68,13 +63,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   main.innerHTML = `
-    <div class="detail-banner ${event.gradient}">
-      <div class="banner-overlay"></div>
-      <a href="events.html" class="back-link">
-        ← Back to Events
-      </a>
-      <span class="detail-banner-emoji">${event.monogram}</span>
-    </div>
+    <div class="detail-banner">
+        <img src="${event.image_url || "img/default-event.jpg"}" 
+             style="width: 100%; height: 100%; object-fit: cover;" 
+             alt="Event Banner"
+             onclick="openImageModal(this.src)"> 
+      </div>
 
     <section>
       <div class="container detail-layout">
@@ -146,3 +140,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     </section>
   `;
 });
+
+// gallery function
+function openImageModal(src) {
+  const modal = document.getElementById("image-modal");
+  const modalImg = document.getElementById("full-screen-image");
+
+  modalImg.src = src;
+  modal.style.display = "flex";
+
+  setTimeout(() => {
+    modal.classList.add("show");
+  }, 10);
+}
+
+function closeImageModal() {
+  const modal = document.getElementById("image-modal");
+
+  modal.classList.remove("show");
+
+  setTimeout(() => {
+    if (!modal.classList.contains("show")) {
+      modal.style.display = "none";
+    }
+  }, 300);
+}
